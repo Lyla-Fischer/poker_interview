@@ -10,7 +10,7 @@ Suit = Enum("Suit", "S H D C")
 def makeCard(cardString):
     """ card strings come in the form "JH", "4C", "4S", "JC", "9H" """
     return Card(Rank[cardString[:-1]], Suit[cardString[-1]])
-Card.__str__ = lambda card: card.rank + card.suit
+Card.__str__ = lambda card: card.rank.name + card.suit.name
 
 RankCount = namedtuple("RankCount", ['rank', 'count', 'cards'])
 def count_ranks(cards):
@@ -25,6 +25,59 @@ def count_ranks(cards):
     return [RankCount(rank, len(cards), cards) for rank, cards in rank_counts.items()]
 
 
+SuitCount = namedtuple("SuitCount", ['suit', 'count', 'cards'])
+def count_suits(cards):
+    """
+    Return a list of SuitCount objects according to the number of cards of each suit in the input
+    cards - an array of Card objects
+    """
+    suit_counts = defaultdict(list)
+    for card in cards:
+        suit_counts[card.suit].append(card)
+
+    return [RankCount(suit, len(cards), cards) for suit, cards in suit_counts.items()]
+
+
+def get_kickers(binned_multiples, num_kickers):
+    """
+    Return the highest num_kickers Cards represented in binned_multiples, an array of RankCount objects
+    """
+    sorted_rank = sorted(binned_multiples) # everything that wasn't popped based off of multiples will be sorted by rank, now
+    kickers = []
+    while len(kickers) < num_kickers:
+        num_needed = num_kickers - len(kickers)
+        cards = sorted_rank.pop().cards
+        num_available = len(cards)
+        kickers += cards[ 0:min(num_needed, num_available)]
+    return kickers
+
+
+def max_straight(cards):
+    """ 
+    Return a list of cards which consitute a the maximum straight, if a straight is present in the input
+    Otherwise, return None
+
+    Keyword Arguments:
+    cards - an array of Card objects
+    """
+    binned_cards = count_ranks(cards)
+    sorted_cards = sorted([(card_class.value, cards) for card_class, num_cards, cards in binned_cards])
+    
+    i = 1
+    my_straight = []
+    my_straight.append(sorted_cards[-1][1][0])
+    while (i < len(sorted_cards)) and (len(my_straight) < Hand.hand_size):
+        this_rank = sorted_cards[-1-i]
+        if not (this_rank[0] + 1 == my_straight[-1].rank.value):
+            my_straight = []
+        my_straight.append(this_rank[1][0])
+        i+=1
+
+    if len(my_straight) == Hand.hand_size:
+        return my_straight
+    else:
+        return None
+
 
 class Hand:
     Categories = OrderedEnum("Categories", "high_card pair two_pair three_of_a_kind straight flush full_house four_of_a_kind straight_flush")
@@ -38,94 +91,74 @@ class Hand:
 
         self.cards = [makeCard(card) for card in cards]
 
-        self.category = Hand.Categories.high_card
 
-        #non-multiple-based hands
-        if self.is_flush(self.cards):
-            if self.is_straight(self.cards):
-                self.category = Hand.Categories.straight_flush
-            else:
-                self.category = Hand.Categories.flush # four_of_a_kind and full_house are impossible if it is a flush
-        elif self.is_straight(self.cards):
-            self.category = Hand.Categories.straight # multiples are impossible in a straight, and we ruled out flushes
-
-        #everything else is a multiple-based hand
-        rank_counts = count_ranks(self.cards)
-        sorted_multiples = sorted(rank_counts, key=lambda count_tuple:(count_tuple.count,count_tuple.rank))
-
-        highest_multiple = sorted_multiples.pop()
+        sorted_multiples = sorted(count_ranks(self.cards), key=lambda count_tuple:(count_tuple.count, count_tuple.rank))
+        major_multiple = sorted_multiples.pop()
+        #In the case of a full house, it doesn't matter if there is three of a lower rank, we still use the higher rank
+        minor_multiple_candidates = sorted([rank_count for rank_count in sorted_multiples if rank_count.count >= 2])
+        minor_multiple = minor_multiple_candidates[0] if len(minor_multiple_candidates) > 0 else None
         self.tie_breaks = []
-        if highest_multiple.count == 4:
+
+        suit_counts = count_suits(self.cards)
+        straight_flushes = [max_straight(cards) for suit, count, cards in suit_counts if count >= Hand.hand_size]
+        flushes = [sorted(cards, reverse=True) for suit, count, cards in suit_counts if count >= Hand.hand_size]
+        straight = max_straight(self.cards)
+        if len(filter(None, straight_flushes)) > 0:
+            self.category = self.Categories.straight_flush
+            self.final_hand = max(straight_flushes)
+            self.tie_breaks = max(self.final_hand)
+
+        elif major_multiple.count == 4:
             self.category = Hand.Categories.four_of_a_kind
-            self.tie_breaks = [highest_multiple]
+            kickers = get_kickers(sorted_multiples, 1)
+            self.final_hand = major_multiple.cards + kickers
+            self.tie_breaks = [major_multiple, kickers]
 
-        elif highest_multiple.count == 3:
-            minor_multiple = sorted_multiples.pop()
-            if minor_multiple.count == 2:
-                self.category = Hand.Categories.full_house
-                self.tie_breaks = [highest_multiple, minor_multiple]
-            else:
-                self.category = Hand.Categories.three_of_a_kind
-                self.tie_breaks = [highest_multiple]
-                sorted_multiples.append(minor_multiple) # because we didn't use it
+        elif (major_multiple.count == 3) and minor_multiple:
+            self.category = Hand.Categories.full_house
+            self.tie_breaks = [major_multiple, minor_multiple]
 
-        elif highest_multiple.count == 2:
+        elif flushes:
+            self.category = self.Categories.flush
+            self.final_hand = max(flushes)
+            self.tie_breaks = self.final_hand # This has already been sorted 
+
+        elif straight:
+            self.category = self.Categories.straight
+            self.final_hand = straight
+            self.tie_breaks = max(self.final_hand)
+
+        elif major_multiple.count == 3:
+            self.category = Hand.Categories.three_of_a_kind
+            kickers = get_kickers(sorted_multiples, 2)
+            self.final_hand = major_multiple.cards + kickers
+            self.tie_breaks = [major_multiple, kickers]
+
+        elif (major_multiple.count == 2):
             minor_multiple = sorted_multiples.pop()
             if minor_multiple.count == 2:
                 self.category = Hand.Categories.two_pair
-                self.tie_breaks = [highest_multiple, minor_multiple]
+                kickers = get_kickers(sorted_multiples, 1)
+                self.final_hand = major_multiple.cards + minor_multiple.cards + kickers
+                self.tie_breaks = [major_multiple, minor_multiple, kickers]
+
             else:
                 self.category = Hand.Categories.pair
-                self.tie_breaks = [highest_multiple]
                 sorted_multiples.append(minor_multiple) # because we didn't use it
-
+                kickers = get_kickers(sorted_multiples, 3)
+                self.final_hand = major_multiple.cards + kickers
+                self.tie_breaks = [major_multiple, kickers]
         else:
-            sorted_multiples.append(highest_multiple) # we never actually used it, so we put it back
+            self.category = Hand.Categories.high_card
+            sorted_multiples.append(major_multiple) # we never actually used it, so we put it back
+            kickers = get_kickers(sorted_multiples, 5)
+            self.final_hand = kickers
+            self.tie_breaks = kickers
 
-
-        sorted_rank = sorted(sorted_multiples) # everything that wasn't popped based off of multiples will be sorted by rank, now
-        while self._num_card_rep(self.tie_breaks) < self.hand_size:
-            self.tie_breaks.append(sorted_rank.pop())
 
     def __cmp__(self, other):
         return cmp((self.category, self.tie_breaks), (other.category, other.tie_breaks))
 
-    @staticmethod
-    def _num_card_rep(counts):
-        """
-        Return the total number of cards that are included for consideration of tie breaks
 
-        Keyword Arguments:
-        counts - an array of RankCount objects
-        """
-        return sum(rank_count.count for rank_count in counts)
-
-    @staticmethod
-    def is_flush(cards):
-        """ 
-        Return boolean of whether the cards array is all the same suit.
-
-        Keyword Arguments:
-        cards - an array of Card objects
-        """
-        suit = cards[0][-1]
-        for card in cards:
-            if not card[-1] == suit:
-                return False
-        return True 
-
-    @staticmethod
-    def is_straight(cards):
-        """ 
-        Return boolean of whether the Cards array is made of consecutive ranks.
-
-        Keyword Arguments:
-        cards - an array of Card or RankCount objects
-        """
-        sorted_cards = sorted([card.rank.value for card in cards])
-        for i in range(len(sorted_cards)-1):
-            if not (sorted_cards[i] + 1 == sorted_cards[i+1]):
-                return False
-        return True
 
 
