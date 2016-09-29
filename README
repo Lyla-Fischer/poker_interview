@@ -8,7 +8,7 @@ In order to set up your environment, please make sure that a legacy enum package
 
 Usage: 
 
-Cards are represented by their number or first letter for the non-numeric cards (J, Q, K, A) and the suits are represented by their first letter (H, C, D, S) and stored as a JSON array. So for example a hand J♥ 4♣ 4♠ J♣ 9♥ will be represented as ["JH", "4C", "4S", "JC", "9H"]. Hands are created by passing the JSON array into the Hand class. Hands can be compared using normal comparison operators. 
+Cards are represented by their number or first letter for the non-numeric cards (J, Q, K, A) and the suits are represented by their first letter (H, C, D, S) and stored as a JSON array. So for example a hand J♥ 4♣ 4♠ J♣ 9♥ will be represented as ["JH", "4C", "4S", "JC", "9H"]. Hands are created by passing the JSON array into the Hand class. Hands can be compared using normal comparison operators. Five-card hands will be created from JSON arrays that contain more than five cards. 
 
 Example:
 
