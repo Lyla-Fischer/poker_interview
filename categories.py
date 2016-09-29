@@ -1,45 +1,67 @@
 from enum import Enum #note that the installed package needs to be enum32, not the default enum
 import heapq
 from collections import defaultdict, namedtuple
+
 from ordered_enum import OrderedEnum
 
 Card = namedtuple('Card', ['rank', 'suit'])
-RankCount = namedtuple("RankCount", ['rank', 'count'])
 Rank = OrderedEnum("Rank", "2 3 4 5 6 7 8 9 10 J Q K A")
 Suit = Enum("Suit", "S H D C")
+def makeCard(cardString):
+    """ card strings come in the form "JH", "4C", "4S", "JC", "9H" """
+    return Card(Rank[cardString[:-1]], Suit[cardString[-1]])
+Card.__str__ = lambda card: card.rank + card.suit
+
+RankCount = namedtuple("RankCount", ['rank', 'count', 'cards'])
+def count_ranks(cards):
+    """
+    Return a list of RankCount objects according to the number of cards of each rank in the input
+    cards - an array of Card objects
+    """
+    rank_counts = defaultdict(list)
+    for card in cards:
+        rank_counts[card.rank].append(card)
+
+    return [RankCount(rank, len(cards), cards) for rank, cards in rank_counts.items()]
+
+
 
 class Hand:
     Categories = OrderedEnum("Categories", "high_card pair two_pair three_of_a_kind straight flush full_house four_of_a_kind straight_flush")
     hand_size = 5
 
     def __init__(self, cards):
+        """
+        Initialize a Hand object
+        cards - an array of cards in the form ["JH", "4C", "4S", "JC", "9H"]
+        """
 
-        cards = self.normalize_cards(cards)
+        self.cards = [makeCard(card) for card in cards]
 
         self.category = Hand.Categories.high_card
 
         #non-multiple-based hands
-        if self.is_flush(cards):
-            if self.is_straight(cards):
+        if self.is_flush(self.cards):
+            if self.is_straight(self.cards):
                 self.category = Hand.Categories.straight_flush
             else:
                 self.category = Hand.Categories.flush # four_of_a_kind and full_house are impossible if it is a flush
-        elif self.is_straight(cards):
+        elif self.is_straight(self.cards):
             self.category = Hand.Categories.straight # multiples are impossible in a straight, and we ruled out flushes
 
         #everything else is a multiple-based hand
-        rank_count = self.rank_count(cards)
-        sorted_multiples = sorted(rank_count.items(), key=lambda count_tuple:(count_tuple[1],count_tuple[0]))
+        rank_counts = count_ranks(self.cards)
+        sorted_multiples = sorted(rank_counts, key=lambda count_tuple:(count_tuple.count,count_tuple.rank))
 
         highest_multiple = sorted_multiples.pop()
         self.tie_breaks = []
-        if highest_multiple[1] == 4:
+        if highest_multiple.count == 4:
             self.category = Hand.Categories.four_of_a_kind
             self.tie_breaks = [highest_multiple]
 
-        elif highest_multiple[1] == 3:
+        elif highest_multiple.count == 3:
             minor_multiple = sorted_multiples.pop()
-            if minor_multiple[1] == 2:
+            if minor_multiple.count == 2:
                 self.category = Hand.Categories.full_house
                 self.tie_breaks = [highest_multiple, minor_multiple]
             else:
@@ -47,9 +69,9 @@ class Hand:
                 self.tie_breaks = [highest_multiple]
                 sorted_multiples.append(minor_multiple) # because we didn't use it
 
-        elif highest_multiple[1] == 2:
+        elif highest_multiple.count == 2:
             minor_multiple = sorted_multiples.pop()
-            if minor_multiple[1] == 2:
+            if minor_multiple.count == 2:
                 self.category = Hand.Categories.two_pair
                 self.tie_breaks = [highest_multiple, minor_multiple]
             else:
@@ -62,42 +84,29 @@ class Hand:
 
 
         sorted_rank = sorted(sorted_multiples) # everything that wasn't popped based off of multiples will be sorted by rank, now
-        while self.num_tie_breaks(self.tie_breaks) < self.hand_size:
+        while self._num_card_rep(self.tie_breaks) < self.hand_size:
             self.tie_breaks.append(sorted_rank.pop())
 
     def __cmp__(self, other):
         return cmp((self.category, self.tie_breaks), (other.category, other.tie_breaks))
 
     @staticmethod
-    def rank_count(cards):
-        """
-        Return a dictionary with key:index of Rank:num_cards
-
-        Keyword Arguments:
-        cards - an array of Card objects
-        """
-        rank_count = defaultdict(int)
-        for card in cards:
-            rank_count[card[0:-1]] += 1 
-        return rank_count
-
-    @staticmethod
-    def num_tie_breaks(tie_breaks):
+    def _num_card_rep(counts):
         """
         Return the total number of cards that are included for consideration of tie breaks
 
         Keyword Arguments:
-        tie_breaks - an array of tuples of the form (card, count)
+        counts - an array of RankCount objects
         """
-        return sum(tie_break[1] for tie_break in tie_breaks)
+        return sum(rank_count.count for rank_count in counts)
 
     @staticmethod
     def is_flush(cards):
         """ 
-        Return boolean of whether the cards array is a flush.
+        Return boolean of whether the cards array is all the same suit.
 
         Keyword Arguments:
-        cards - an array of cards in the form ["JH", "4C", "4S", "JC", "9H"]
+        cards - an array of Card objects
         """
         suit = cards[0][-1]
         for card in cards:
@@ -108,25 +117,15 @@ class Hand:
     @staticmethod
     def is_straight(cards):
         """ 
-        Return boolean of whether the cards array is a straight.
+        Return boolean of whether the Cards array is made of consecutive ranks.
 
         Keyword Arguments:
-        cards - an array of Card objects
+        cards - an array of Card or RankCount objects
         """
         sorted_cards = sorted([card.rank.value for card in cards])
         for i in range(len(sorted_cards)-1):
             if not (sorted_cards[i] + 1 == sorted_cards[i+1]):
                 return False
         return True
-
-    @staticmethod
-    def normalize_cards(cards):
-        """ 
-        Return an array of Card objects
-
-        Keyword Arguments:
-        cards - an array of cards in the form ["JH", "4C", "4S", "JC", "9H"]
-        """
-        return [Card(Rank[card[:-1]], Suit[card[-1]]) for card in cards]
 
 
