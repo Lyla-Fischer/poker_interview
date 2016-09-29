@@ -159,6 +159,12 @@ class Hand:
     def __cmp__(self, other):
         return cmp((self.category, self.tie_breaks), (other.category, other.tie_breaks))
 
+    def __str__(self):
+        return self.final_hand + ": " + self.category + ", " + self.tie_breaks
+
+
+
+
 
 
 

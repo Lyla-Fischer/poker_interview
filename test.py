@@ -5,7 +5,7 @@
 
 import unittest
 
-from categories import Hand, makeCard, Rank, count_ranks, RankCount, max_straight
+from poker import Hand, makeCard, Rank, count_ranks, RankCount, max_straight
 
 class TestHand(unittest.TestCase):
 
@@ -71,6 +71,7 @@ class TestHand(unittest.TestCase):
     	self.assertEqual(my_hand.category, Hand.Categories.full_house)
 
     	my_hand = Hand(["10S", "9S", "8S", "5S", "6S", "10H", "6D", "9D", "8C", "7C"])
+    	print my_hand
     	self.assertEqual(my_hand.category, Hand.Categories.flush)
 
     	my_hand = Hand(["KH", "QH", "JH", "AH", "10H", "10S", "6S", "9S", "8S", "7S"])
