@@ -1,0 +1,23 @@
+This is a small program which allows users to represent and compare poker hands. 
+
+The main file is poker.py, where the Hand class is located. This currently does not have a command-line interface, and it must be run from a python interactive prompt. 
+
+Setup:
+
+In order to set up your environment, please make sure that a legacy enum package is uninstalled by running 'pip uninstall enum'. Please make sure that enum32 is installed by running 'pip install enum32'.
+
+Usage: 
+
+Cards are represented by their number or first letter for the non-numeric cards (J, Q, K, A) and the suits are represented by their first letter (H, C, D, S) and stored as a JSON array. So for example a hand J♥ 4♣ 4♠ J♣ 9♥ will be represented as ["JH", "4C", "4S", "JC", "9H"]. Hands are created by passing the JSON array into the Hand class. Hands can be compared using normal comparison operators. 
+
+Example:
+
+>>> from poker import *
+>>> my_hand = Hand(["10S", "9S", "8S", "5S", "6S", "10H", "6D", "9D", "8C", "7C"])
+>>> second_hand = Hand(["JH", "JC", "QS", "5D", "9H"])
+>>> print my_hand
+['10S', '9S', '8S', '6S', '5S']: flush, ['10', '9', '8', '6', '5']
+>>> print second_hand
+['JH', 'JC', 'QS', '9H', '5D']: pair, ['J', 'Q', '9', '5']
+>>> my_hand < second_hand
+False
