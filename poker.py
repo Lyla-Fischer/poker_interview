@@ -6,6 +6,7 @@ from ordered_enum import OrderedEnum
 
 Card = namedtuple('Card', ['rank', 'suit'])
 Rank = OrderedEnum("Rank", "2 3 4 5 6 7 8 9 10 J Q K A")
+Rank.__str__ = lambda rank: rank.name
 Suit = Enum("Suit", "S H D C")
 def makeCard(cardString):
     """ card strings come in the form "JH", "4C", "4S", "JC", "9H" """
@@ -116,6 +117,7 @@ class Hand:
 
         elif (major_multiple.count == 3) and minor_multiple:
             self.category = Hand.Categories.full_house
+            self.final_hand = major_multiple.cards + minor_multiple.cards
             self.tie_breaks = [major_multiple, minor_multiple]
 
         elif flushes:
@@ -160,7 +162,7 @@ class Hand:
         return cmp((self.category, self.tie_breaks), (other.category, other.tie_breaks))
 
     def __str__(self):
-        return self.final_hand + ": " + self.category + ", " + self.tie_breaks
+        return str([str(card) for card in self.final_hand]) + ": " + self.category.name + ", " + str([str(repr.rank) for repr in self.tie_breaks])
 
 
 
