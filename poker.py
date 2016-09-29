@@ -97,7 +97,7 @@ class Hand:
         major_multiple = sorted_multiples.pop()
         #In the case of a full house, it doesn't matter if there is three of a lower rank, we still use the higher rank
         minor_multiple_candidates = sorted([rank_count for rank_count in sorted_multiples if rank_count.count >= 2])
-        minor_multiple = minor_multiple_candidates[0] if len(minor_multiple_candidates) > 0 else None
+        minor_multiple = minor_multiple_candidates[-1] if len(minor_multiple_candidates) > 0 else None
         self.tie_breaks = []
 
         suit_counts = count_suits(self.cards)
