@@ -113,7 +113,7 @@ class Hand:
             self.category = Hand.Categories.four_of_a_kind
             kickers = get_kickers(sorted_multiples, 1)
             self.final_hand = major_multiple.cards + kickers
-            self.tie_breaks = [major_multiple, kickers]
+            self.tie_breaks = [major_multiple] + kickers
 
         elif (major_multiple.count == 3) and minor_multiple:
             self.category = Hand.Categories.full_house
@@ -134,7 +134,7 @@ class Hand:
             self.category = Hand.Categories.three_of_a_kind
             kickers = get_kickers(sorted_multiples, 2)
             self.final_hand = major_multiple.cards + kickers
-            self.tie_breaks = [major_multiple, kickers]
+            self.tie_breaks = [major_multiple] + kickers
 
         elif (major_multiple.count == 2):
             minor_multiple = sorted_multiples.pop()
@@ -142,14 +142,14 @@ class Hand:
                 self.category = Hand.Categories.two_pair
                 kickers = get_kickers(sorted_multiples, 1)
                 self.final_hand = major_multiple.cards + minor_multiple.cards + kickers
-                self.tie_breaks = [major_multiple, minor_multiple, kickers]
+                self.tie_breaks = [major_multiple, minor_multiple] + kickers
 
             else:
                 self.category = Hand.Categories.pair
                 sorted_multiples.append(minor_multiple) # because we didn't use it
                 kickers = get_kickers(sorted_multiples, 3)
                 self.final_hand = major_multiple.cards + kickers
-                self.tie_breaks = [major_multiple, kickers]
+                self.tie_breaks = [major_multiple] + kickers
         else:
             self.category = Hand.Categories.high_card
             sorted_multiples.append(major_multiple) # we never actually used it, so we put it back
